@@ -14,6 +14,7 @@ class node:
         self.res = []
 
     def _recvfile(self, sock, path):
+        print(self.path + ' receiving')
         fp = open(path, 'w')
         while True:
             data = sock.recv(self.buffsize)
@@ -179,7 +180,7 @@ def main(argv):
     # address_file node node_id
     elif argv[1] == 'node':
         n_id = argv[2]
-        n = node(addrs[int(n_id)], n_id + '_save_')
+        n = node(addrs[int(n_id)], n_id)
         n.start()
 
 
