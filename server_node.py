@@ -17,11 +17,12 @@ class node:
         print(self.path + ' receiving')
         fp = open(path, 'w')
         while True:
-            data = sock.recv(self.buffsize)
-
-            if data.decode() == '$finish':
+            msg = sock.recv(self.buffsize)
+            data = msg.decode()
+            if data == '$finish':
+                print('received')
                 break
-            fp.write(data.decode())
+            fp.write(data)
         fp.close()
 
 
@@ -75,57 +76,47 @@ class server:
             if not data:
                 break
             sock.send(data.encode())
+        fp.close()
+        print('send over')
         fin = '$finish'
         sock.send(fin.encode())
-        fp.close()
 
-    def _nodecontrol(self, id, naddr, datapath, programpath):
-        ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        node_addr = naddr.split(',')
-        ksock.connect((node_addr[0], int(node_addr[1])))
-        msg = ksock.recv(self.buffsize)
-        if msg.decode() != 'connected':
-            self.nodestate[id] = -1
-            return
+
+    def _nodecontrol(self, id, nsock):
+
 
         while True:
-            msg = ksock.recv(self.buffsize)
-            if msg.decode() == 'getdata':
-                self._sendfile(ksock, datapath)
-            elif msg.decode() == 'getprogram':
-                self._sendfile(ksock, programpath)
-            elif msg.decode() == 'sendresult':
-                res = ksock.recv(self.buffsize)
+            msg = nsock.recv(self.buffsize)
+
+            if msg.decode() == 'sendresult':
+                res = nsock.recv(self.buffsize)
                 self.res.append(int(res.decode()))
             elif msg.decode() == 'quit':
-                ksock.close()
+                nsock.close()
                 break
             else:
-                print(naddr + 'wrong!')
+                print(str(id) + 'wrong!')
 
 
     def _taskcontrol(self, sock, rolenum):
         while True:
             msg = sock.recv(self.buffsize)
-            msg = msg.decode()
-            if msg == 'getrolenum':
-                sock.send(str(rolenum).encode())
-            elif msg == 'getnum':
-                sock.send(str(self.n).encode())
-            elif msg == 'getresult':
+            dmsg = msg.decode()
+
+            if dmsg == 'getmaxnumber':
                 while self.sig != 1:
                     continue
                 res = self.res[0]
                 sock.send(str(res).encode())
-            elif msg == 'gettaskaddr':
+            elif dmsg == 'gettaskaddr':
                 id = sock.recv(self.buffsize)
                 taddr = self.tasktable[int(id.decode())]
                 sock.send(str(taddr))
-            elif msg == 'quit':
+            elif dmsg == 'quit':
                 sock.close()
                 break
             else:
-                print('task ' + rolenum + 'wrong!')
+                print('task ' + str(rolenum) + 'wrong!')
 
 
     def workstart(self, datapath, programpath):
@@ -136,12 +127,39 @@ class server:
         ssock.listen(10)
 
         for nodeid in range(self.n):
-            t = threading.Thread(target=self._nodecontrol, args=(nodeid, self.nodeaddress[nodeid], datapath, programpath))
+
+            nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            node_addr = self.nodeaddress[nodeid].split(',')
+            nsock.connect((node_addr[0], int(node_addr[1])))
+
+            msg = nsock.recv(self.buffsize)
+            if msg.decode() != 'connected':
+                self.nodestate[nodeid] = -1
+                continue
+
+            msg = nsock.recv(self.buffsize)
+            if msg.decode() == 'getdata':
+                self._sendfile(nsock, datapath)
+
+            msg = nsock.recv(self.buffsize)
+            if msg.decode() == 'getprogram':
+                self._sendfile(nsock, programpath)
+
+            t = threading.Thread(target=self._nodecontrol, args=(nodeid, nsock))
             t.start()
 
         for i in range(self.n):
             ksock, kaddr = ssock.accept()
             self.tasktable[i] = kaddr
+
+            msg = ksock.recv(self.buffsize)
+            if msg.decode() == 'getrolenum':
+                ksock.send(str(i).encode())
+
+            msg = ksock.recv(self.buffsize)
+            if msg.decode() == 'getnum':
+                ksock.send(str(self.n).encode())
+
             t = threading.Thread(target=self._taskcontrol, args=(ksock, i))
             t.start()
 

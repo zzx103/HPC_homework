@@ -43,7 +43,8 @@ fp.close()
 m = len(data)
 tmaxnum = max(data[m // n * k: m // n * (k + 1)])
 nsock.send(str(tmaxnum).encode())
-ssock.send('getresult'.encode())
+
+ssock.send('getmaxnumber'.encode())
 msg = ssock.recv(buffsize)
 gmax = int(msg.decode())
 
