@@ -30,6 +30,7 @@ class node:
         nsock.bind((naddr[0], int(naddr[1])))
         nsock.listen(10)
         # 接收文件
+        print(self.addr + ' start')
         ssock, saddr = nsock.accept()
         saddr_str = saddr[0] + ',' + str(saddr[1])
 
@@ -160,22 +161,25 @@ class server:
 
 
 def main(argv):
-    address_file = argv[1]
-    data_file = argv[2]
-    program_file = argv[3]
+
+    address_file = argv[0]
 
     with open(address_file) as f:
         lines = f.readlines()
-        server_addr = lines[0].strip()
-        node_addrs = [line.strip() for line in lines]
+        addrs = [line.strip() for line in lines]
+    # address_file server data_file program_file
+    if argv[1] == 'server':
 
-    if argv[0] == 'server':
-        s = server(server_addr, node_addrs)
+        data_file = argv[2]
+        program_file = argv[3]
+        ns = 2
+        server_addr = addrs[0]
+        s = server(server_addr, addrs[1:1 + ns])
         s.workstart(data_file, program_file)
-
-    elif argv[0] == 'node':
-        n_id = argv[4]
-        n = node(node_addrs[n_id], n_id + '_save.txt')
+    # address_file node node_id
+    elif argv[1] == 'node':
+        n_id = argv[2]
+        n = node(addrs[int(n_id)], n_id + '_save_')
         n.start()
 
 
