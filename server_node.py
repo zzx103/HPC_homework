@@ -14,16 +14,20 @@ class node:
         self.res = []
 
     def _recvfile(self, sock, path):
-        print(self.path + ' receiving')
-        fp = open(path, 'w')
-        while True:
+        msg = sock.recv(self.buffsize)
+        sock.send("File size received".encode())
+        total_size = int(msg.decode())
+        received_size = 0
+        f = open(path, "wb")
+        while received_size < total_size:
             msg = sock.recv(self.buffsize)
-            data = msg.decode()
-            if data == '$finish':
-                print('received')
-                break
-            fp.write(data)
-        fp.close()
+            f.write(msg)
+            received_size += len(msg)
+        f.close()
+        print("received")
+
+
+
 
 
     def start(self):
@@ -70,20 +74,18 @@ class server:
         self.tasktable = {}
 
     def _sendfile(self, sock, path):
-        fp = open(path, 'r')
-        while True:
-            data = fp.read(self.buffsize)
-            if not data:
-                break
-            sock.send(data.encode())
-        fp.close()
-        print('send over')
-        fin = '$finish'
-        sock.send(fin.encode())
+        filesize = str(os.path.getsize(path))
 
+        sock.send(filesize.encode())
+        msg = sock.recv(self.buffsize)  # 挂起服务器发送，确保客户端单独收到文件大小数据，避免粘包
+        print('sending')
+        f = open(path, "rb")
+        for line in f:
+            sock.send(line)
+        f.close()
+        print('send over')
 
     def _nodecontrol(self, id, nsock):
-
 
         while True:
             msg = nsock.recv(self.buffsize)
@@ -96,7 +98,6 @@ class server:
                 break
             else:
                 print(str(id) + 'wrong!')
-
 
     def _taskcontrol(self, sock, rolenum):
         while True:
