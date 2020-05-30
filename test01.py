@@ -79,7 +79,8 @@ class server:
 
     def _nodecontrol(self, id, naddr, datapath, programpath):
         ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ksock.connect(naddr)
+        node_addr = naddr.split(',')
+        ksock.connect((node_addr[0], int(node_addr[1])))
         msg = ksock.recv(self.buffsize)
         if msg.decode() != 'connected':
             self.nodestate[id] = -1
@@ -98,35 +99,37 @@ class server:
                 ksock.close()
                 break
             else:
-                ksock.send('wrong'.encode())
+                print(naddr + 'wrong!')
 
 
     def _taskcontrol(self, sock, rolenum):
         while True:
             msg = sock.recv(self.buffsize)
-            if msg.decode() == 'getrolenum':
+            msg = msg.decode()
+            if msg == 'getrolenum':
                 sock.send(str(rolenum).encode())
-            elif msg.decode() == 'getnum':
+            elif msg == 'getnum':
                 sock.send(str(self.n).encode())
-            elif msg.decode() == 'getresult':
+            elif msg == 'getresult':
                 while self.sig != 1:
                     continue
                 res = self.res[0]
                 sock.send(str(res).encode())
-            elif msg.decode() == 'gettaskaddr':
+            elif msg == 'gettaskaddr':
                 id = sock.recv(self.buffsize)
                 taddr = self.tasktable[int(id.decode())]
                 sock.send(str(taddr))
-            elif msg.decode() == 'quit':
+            elif msg == 'quit':
                 sock.close()
                 break
             else:
-                sock.send('wrong'.encode())
+                print('task ' + rolenum + 'wrong!')
 
 
     def workstart(self, datapath, programpath):
         ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ssock.bind((self.addr.split(',')[0], int(self.addr.split(',')[1])))
+        saddr = self.addr.split(',')
+        ssock.bind((saddr[0], int(saddr[1])))
 
         ssock.listen(10)
 
@@ -156,7 +159,27 @@ class server:
         print(max(self.res[1:]))
 
 
+def main(argv):
+    address_file = argv[1]
+    data_file = argv[2]
+    program_file = argv[3]
+
+    with open(address_file) as f:
+        lines = f.readlines()
+        server_addr = lines[0].strip()
+        node_addrs = [line.strip() for line in lines]
+
+    if argv[0] == 'server':
+        s = server(server_addr, node_addrs)
+        s.workstart(data_file, program_file)
+
+    elif argv[0] == 'node':
+        n_id = argv[4]
+        n = node(node_addrs[n_id], n_id + '_save.txt')
+        n.start()
 
 
+if __name__ == '__main__':
+    main(sys.argv[1:])
 
 
