@@ -24,15 +24,17 @@ naddr = sys.argv[3]
 buffsize = 2048
 
 nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-nsock.connect((naddr.split(',')[0], int(naddr.split(',')[1])))
+naddress = naddr.split(',')
+nsock.connect((naddress[0], int(naddress[1])))
 
 
 ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-ssock.connect((saddr.split(',')[0], int(saddr.split(',')[1])))
-ssock.send('getrolenum'.encode())
+saddress = saddr.split(',')
+ssock.connect((saddress[0], int(saddress[1])))
+ssock.send('get_task_id'.encode())
 msg = ssock.recv(buffsize)
 k = int(msg.decode())
-ssock.send('getnum'.encode())
+ssock.send('get_task_num'.encode())
 msg = ssock.recv(buffsize)
 n = int(msg.decode())
 
@@ -44,7 +46,7 @@ m = len(data)
 tmaxnum = max(data[m // n * k: m // n * (k + 1)])
 nsock.send(str(tmaxnum).encode())
 
-ssock.send('getmaxnumber'.encode())
+ssock.send('get_global_max_number'.encode())
 msg = ssock.recv(buffsize)
 gmax = int(msg.decode())
 
@@ -52,6 +54,8 @@ res = 1
 for num in data[m // n * k: m // n * (k + 1)]:
     if is_p(gmax, num) and num > res:
         res = num
+msg = nsock.recv(buffsize)
 nsock.send(str(res).encode())
+msg = nsock.recv(buffsize)
 nsock.close()
 ssock.close()

@@ -24,11 +24,6 @@ class node:
             f.write(msg)
             received_size += len(msg)
         f.close()
-        print("received")
-
-
-
-
 
     def start(self):
         nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,23 +36,45 @@ class node:
         saddr_str = saddr[0] + ',' + str(saddr[1])
 
         ssock.send('connected'.encode())
-        ssock.send('getdata'.encode())
+
+        msg = ssock.recv(self.buffsize)
+
+        ssock.send('get_data'.encode())
         self._recvfile(ssock, self.path + 'data')
-        ssock.send('getprogram'.encode())
+        print(self.path + 'data' + " received")
+
+        ssock.send('get_program'.encode())
         self._recvfile(ssock, self.path + 'program')
+        print(self.path + 'program' + " received")
+
         # 执行程序
         arg = 'python ' + self.path + 'program' + ' ' + self.path + 'data' + ' ' + saddr_str + ' ' + self.addr
         t = threading.Thread(target=os.popen, args=(arg,))
         t.start()
 
         tsock, taddr = nsock.accept()
+        print('task connected')
         msg = tsock.recv(self.buffsize)
-        ssock.send('sendresult'.encode())
-        ssock.send(msg)
-        msg = tsock.recv(self.buffsize)
-        ssock.send('sendresult'.encode())
-        ssock.send(msg)
-        ssock.send('quit'.encode())
+        lmn = msg
+        print('get local max number: ' + lmn.decode())
+
+
+        ssock.send('send_local_max_number'.encode())
+        msg = ssock.recv(self.buffsize)
+        ssock.send(lmn)
+
+        tsock.send('get_prime'.encode())
+        local_prime = tsock.recv(self.buffsize)
+        print('get local prime: ' + local_prime.decode())
+        tsock.send('over'.encode())
+        tsock.close()
+
+        msg = ssock.recv(self.buffsize)
+        ssock.send('send_local_prime'.encode())
+        msg = ssock.recv(self.buffsize)
+        ssock.send(local_prime)
+
+        msg = ssock.recv(self.buffsize)
         ssock.close()
 
 
@@ -87,37 +104,31 @@ class server:
 
     def _nodecontrol(self, id, nsock):
 
-        while True:
-            msg = nsock.recv(self.buffsize)
+        msg = nsock.recv(self.buffsize)
+        if msg.decode() == 'send_local_max_number':
+            nsock.send('ready_to_receive'.encode())
+            lmn = nsock.recv(self.buffsize)
+            self.res.append(int(lmn.decode()))
+            nsock.send('local_max_number_received'.encode())
 
-            if msg.decode() == 'sendresult':
-                res = nsock.recv(self.buffsize)
-                self.res.append(int(res.decode()))
-            elif msg.decode() == 'quit':
-                nsock.close()
-                break
-            else:
-                print(str(id) + 'wrong!')
+        msg = nsock.recv(self.buffsize)
+        if msg.decode() == 'send_local_prime':
+            nsock.send('ready_to_receive'.encode())
+            lmp = nsock.recv(self.buffsize)
+            nsock.send('local_prime_received'.encode())
+            self.res.append(int(lmp.decode()))
 
-    def _taskcontrol(self, sock, rolenum):
-        while True:
-            msg = sock.recv(self.buffsize)
-            dmsg = msg.decode()
+        nsock.close()
 
-            if dmsg == 'getmaxnumber':
-                while self.sig != 1:
-                    continue
-                res = self.res[0]
-                sock.send(str(res).encode())
-            elif dmsg == 'gettaskaddr':
-                id = sock.recv(self.buffsize)
-                taddr = self.tasktable[int(id.decode())]
-                sock.send(str(taddr))
-            elif dmsg == 'quit':
-                sock.close()
-                break
-            else:
-                print('task ' + str(rolenum) + 'wrong!')
+
+    def _taskcontrol(self, tsock, task_id):
+        msg = tsock.recv(self.buffsize)
+        if msg.decode() == 'get_global_max_number':
+            while self.sig != 1:
+                continue
+            g_max = self.res[0]
+            tsock.send(str(g_max).encode())
+        tsock.close()
 
 
     def workstart(self, datapath, programpath):
@@ -139,11 +150,11 @@ class server:
                 continue
 
             msg = nsock.recv(self.buffsize)
-            if msg.decode() == 'getdata':
+            if msg.decode() == 'get_data':
                 self._sendfile(nsock, datapath)
 
             msg = nsock.recv(self.buffsize)
-            if msg.decode() == 'getprogram':
+            if msg.decode() == 'get_program':
                 self._sendfile(nsock, programpath)
 
             t = threading.Thread(target=self._nodecontrol, args=(nodeid, nsock))
@@ -154,11 +165,11 @@ class server:
             self.tasktable[i] = kaddr
 
             msg = ksock.recv(self.buffsize)
-            if msg.decode() == 'getrolenum':
+            if msg.decode() == 'get_task_id':
                 ksock.send(str(i).encode())
 
             msg = ksock.recv(self.buffsize)
-            if msg.decode() == 'getnum':
+            if msg.decode() == 'get_task_num':
                 ksock.send(str(self.n).encode())
 
             t = threading.Thread(target=self._taskcontrol, args=(ksock, i))
@@ -167,17 +178,19 @@ class server:
         while True:
             if len(self.res) != self.n:
                 continue
-            maxnum = max(self.res)
-            self.res.clear()
-            self.res.append(maxnum)
-            self.sig = 1
+
+        maxnum = max(self.res)
+        self.res.clear()
+        self.res.append(maxnum)
+        print('global max number: ' + str(maxnum))
+        self.sig = 1
 
         while True:
             if len(self.res) != self.n + 1:
                 continue
 
-        print(self.res[0])
-        print(max(self.res[1:]))
+        maxp = max(self.res[1:])
+        print('global max prime: ' + str(maxp))
 
 
 def main(argv):
