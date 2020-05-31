@@ -26,7 +26,7 @@ class node:
             received_size += len(msg)
         f.close()
 
-    def start(self):
+    def workstart(self):
         nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         naddr = self.addr.split(',')
         nsock.bind((naddr[0], int(naddr[1])))
@@ -175,8 +175,8 @@ class server:
             t = threading.Thread(target=self._nodecontrol, args=(nodeid, datapath, programpath))
             t.start()
 
-        for i in range(self.n):
-            t = threading.Thread(target=self._taskcontrol, args=(ssock, i))
+        for taskid in range(self.n):
+            t = threading.Thread(target=self._taskcontrol, args=(ssock, taskid))
             t.start()
 
         while True:
@@ -215,7 +215,7 @@ def main(argv):
     elif argv[1] == 'node':
         n_id = argv[2]
         n = node(addrs[int(n_id)], addrs[0], n_id)
-        n.start()
+        n.workstart()
 
 
 if __name__ == '__main__':
