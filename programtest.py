@@ -1,10 +1,11 @@
 # python3.7
 import socket
-import threading
 import sys
 
-def is_p(a, b):
+def is_p(m, n):
     q = 0
+    a = m
+    b = n
     while True:
         q = a % b
         if q == 0:
@@ -27,9 +28,11 @@ buffsize = 2048
 ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 saddress = saddr.split(',')
 ssock.connect((saddress[0], int(saddress[1])))
+
 ssock.send('get_task_id'.encode())
 msg = ssock.recv(buffsize)
 k = int(msg.decode())
+
 ssock.send('get_task_num'.encode())
 msg = ssock.recv(buffsize)
 n = int(msg.decode())
@@ -41,32 +44,27 @@ fp.close()
 m = len(data)
 tmaxnum = max(data[m // n * k: m // n * (k + 1)])
 
-# ###############
-# tfp = open(str(k) + 'd.txt', 'w')
-# tfp.write(str(tmaxnum))
-# tfp.write('\n')
-# for m in data[m // n * k: m // n * (k + 1)]:
-#     tfp.write(str(m))
-# tfp.close()
-# ###############
-
 nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 naddress = naddr.split(',')
 nsock.connect((naddress[0], int(naddress[1])))
-msg = nsock.recv(buffsize)
 
+
+msg = nsock.recv(buffsize)
 nsock.send(str(tmaxnum).encode())
 
 ssock.send('get_global_max_number'.encode())
 msg = ssock.recv(buffsize)
 gmax = int(msg.decode())
+ssock.close()
 
 res = 1
 for num in data[m // n * k: m // n * (k + 1)]:
     if is_p(gmax, num) and num > res:
         res = num
+
 msg = nsock.recv(buffsize)
 nsock.send(str(res).encode())
+
 msg = nsock.recv(buffsize)
 nsock.close()
-ssock.close()
+

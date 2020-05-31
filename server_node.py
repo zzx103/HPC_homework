@@ -56,10 +56,10 @@ class node:
 
         tsock, taddr = nsock.accept()
         print('task connected')
+
         tsock.send('connected'.encode())
         msg = tsock.recv(self.buffsize)
         print('get local max number: ' + msg.decode())
-
 
         ssock.send('send_local_max_number'.encode())
         tmsg = ssock.recv(self.buffsize)
@@ -111,10 +111,10 @@ class server:
         nsock.connect((node_addr[0], int(node_addr[1])))
 
         msg = nsock.recv(self.buffsize)
-        if msg.decode() != 'connected':
-            self.nodestate[id] = -1
-
+        if msg.decode() == 'connected':
+            self.nodestate[id] = 1
         nsock.send('connected'.encode())
+
         msg = nsock.recv(self.buffsize)
         if msg.decode() == 'get_data':
             self._sendfile(nsock, datapath)
@@ -160,6 +160,7 @@ class server:
                 continue
             g_max = self.res[0]
             tsock.send(str(g_max).encode())
+
         tsock.close()
 
 
