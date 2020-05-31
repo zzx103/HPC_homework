@@ -23,10 +23,6 @@ naddr = sys.argv[3]
 
 buffsize = 2048
 
-nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-naddress = naddr.split(',')
-nsock.connect((naddress[0], int(naddress[1])))
-
 
 ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 saddress = saddr.split(',')
@@ -44,6 +40,21 @@ data = [int(line.strip()) for line in lines]
 fp.close()
 m = len(data)
 tmaxnum = max(data[m // n * k: m // n * (k + 1)])
+
+# ###############
+# tfp = open(str(k) + 'd.txt', 'w')
+# tfp.write(str(tmaxnum))
+# tfp.write('\n')
+# for m in data[m // n * k: m // n * (k + 1)]:
+#     tfp.write(str(m))
+# tfp.close()
+# ###############
+
+nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+naddress = naddr.split(',')
+nsock.connect((naddress[0], int(naddress[1])))
+msg = nsock.recv(buffsize)
+
 nsock.send(str(tmaxnum).encode())
 
 ssock.send('get_global_max_number'.encode())
