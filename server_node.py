@@ -6,7 +6,7 @@ import sys
 import os
 
 
-# 客户端
+# 节点端
 class node:
     def __init__(self, addr, server_addr, f_path):
         self.addr = addr
@@ -35,7 +35,7 @@ class node:
         node_data_path = self.path + '_data'
         node_program_path = self.path + '_program'
 
-        print(self.addr + ' start')
+        # print(self.addr + ' start')
         ssock, _ = nsock.accept()
         ssock.send('connected'.encode())
 
@@ -43,11 +43,11 @@ class node:
 
         ssock.send('get_data'.encode())
         self._recvfile(ssock, node_data_path)
-        print(node_data_path + " received")
+        # print(node_data_path + " received")
 
         ssock.send('get_program'.encode())
         self._recvfile(ssock, node_program_path)
-        print(node_program_path + " received")
+        # print(node_program_path + " received")
 
         # 执行程序
         arg = 'python ' + node_program_path + ' ' + node_data_path + ' ' + self.s_addr + ' ' + self.addr
@@ -55,11 +55,10 @@ class node:
         t.start()
 
         tsock, taddr = nsock.accept()
-        print('task connected')
 
         tsock.send('connected'.encode())
         msg = tsock.recv(self.buffsize)
-        print('get local max number: ' + msg.decode())
+        # print('local max number: ' + msg.decode())
 
         ssock.send('send_local_max_number'.encode())
         tmsg = ssock.recv(self.buffsize)
@@ -67,7 +66,7 @@ class node:
 
         tsock.send('get_prime'.encode())
         local_prime = tsock.recv(self.buffsize)
-        print('get local prime: ' + local_prime.decode())
+        # print('local prime: ' + local_prime.decode())
         tsock.send('over'.encode())
         tsock.close()
 
@@ -87,22 +86,25 @@ class server:
         self.buffsize = 2048
         self.nodeaddress = nodeaddress
         self.n = len(nodeaddress)
-        self.nodestate = [0] * len(nodeaddress)
+        self.taskstate = [0] * len(nodeaddress)
         self.res = []
-        self.sig = 0
+        # self.sig = 0
         self.tasktable = {}
+        self.all_nodes_ready = threading.Event()
+        self.begin_to_work = threading.Event()
+        self.all_local_max_ready = threading.Event()
+        self.global_max_ready = threading.Event()
+        self.all_local_prime_ready = threading.Event()
 
     def _sendfile(self, sock, path):
         filesize = str(os.path.getsize(path))
 
         sock.send(filesize.encode())
         msg = sock.recv(self.buffsize)  # 挂起服务器发送，确保客户端单独收到文件大小数据，避免粘包
-        print('sending')
         f = open(path, "rb")
         for line in f:
             sock.send(line)
         f.close()
-        print('send over')
 
     def _nodecontrol(self, id, datapath, programpath):
 
@@ -112,8 +114,7 @@ class server:
 
         msg = nsock.recv(self.buffsize)
         if msg.decode() == 'connected':
-            self.nodestate[id] = 1
-        nsock.send('connected'.encode())
+            nsock.send('connected'.encode())
 
         msg = nsock.recv(self.buffsize)
         if msg.decode() == 'get_data':
@@ -127,99 +128,146 @@ class server:
         if msg.decode() == 'send_local_max_number':
             nsock.send('ready_to_receive'.encode())
             lmn = nsock.recv(self.buffsize)
-            print(str(id) + ' local max number: ' + lmn.decode())
+            # print(str(id) + ' local max number: ' + lmn.decode())
             self.res.append(int(lmn.decode()))
+            if len(self.res) == self.n:
+                self.all_local_max_ready.set()
             nsock.send('local_max_number_received'.encode())
 
         msg = nsock.recv(self.buffsize)
         if msg.decode() == 'send_local_prime':
             nsock.send('ready_to_receive'.encode())
             lmp = nsock.recv(self.buffsize)
-            print(str(id) + ' local max prime: ' + lmp.decode())
+            # print(str(id) + ' local max prime: ' + lmp.decode())
             nsock.send('local_prime_received'.encode())
             self.res.append(int(lmp.decode()))
+            if len(self.res) == self.n + 1:
+                self.all_local_prime_ready.set()
 
         nsock.close()
 
     def _taskcontrol(self, server_sock, task_id):
         tsock, _ = server_sock.accept()
-        print('task ' + str(task_id) + ' connected')
+        # print('task ' + str(task_id) + ' connected')
 
         msg = tsock.recv(self.buffsize)
         if msg.decode() == 'get_task_id':
+            self.taskstate[task_id] = 1
+            if len(self.taskstate) == self.n:
+                self.all_nodes_ready.set()
             tsock.send(str(task_id).encode())
 
         msg = tsock.recv(self.buffsize)
         if msg.decode() == 'get_task_num':
+
+            self.begin_to_work.wait()
+            # while self.sig != 1:
+            #     continue
             tsock.send(str(self.n).encode())
 
         msg = tsock.recv(self.buffsize)
         if msg.decode() == 'get_global_max_number':
-            while self.sig != 1:
-                continue
+
+            self.global_max_ready.wait()
+            # while self.sig != 2:
+            #     continue
             g_max = self.res[0]
             tsock.send(str(g_max).encode())
 
         tsock.close()
 
     def workstart(self, datapath, programpath):
+
+        t1 = time.time()
+        results = []
         ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         saddr = self.addr.split(',')
         ssock.bind((saddr[0], int(saddr[1])))
-
         ssock.listen(10)
 
-        t1 = time.time()
         for nodeid in range(self.n):
             t = threading.Thread(target=self._nodecontrol, args=(nodeid, datapath, programpath))
             t.start()
 
-        t2 = time.time()
         for taskid in range(self.n):
             t = threading.Thread(target=self._taskcontrol, args=(ssock, taskid))
             t.start()
 
+        self.all_nodes_ready.wait()
+        # while sum(self.taskstate) != self.n:
+        #     continue
 
-        while True:
-            if len(self.res) == self.n:
-                maxnum = max(self.res)
-                self.res.clear()
-                self.res.append(maxnum)
-                print('global max number: ' + str(maxnum))
-                self.sig = 1
-                break
+        t2 = time.time()
 
-        while True:
-            if len(self.res) == self.n + 1:
-                maxp = max(self.res[1:])
-                print('global max prime: ' + str(maxp))
-                break
+        self.begin_to_work.set()
+        # self.sig = 1
+
+        self.all_local_max_ready.wait()
+        # while len(self.res) != self.n:
+        #     continue
+
+        maxnum = max(self.res)
+        self.res.clear()
+        self.res.append(maxnum)
+        results.append(str(maxnum))
+        # print('global max number: ' + str(maxnum))
+
+        self.global_max_ready.set()
+        # self.sig = 2
+
+        self.all_local_prime_ready.wait()
+        # while len(self.res) != self.n + 1:
+        #     continue
+
+        maxp = max(self.res[1:])
+        results.append(str(maxp))
+        # print('global max prime: ' + str(maxp))
+
         t3 = time.time()
-        print(t2 - t1)
-        print(t3 - t2)
+        results.append(str(t2 - t1))
+        results.append(str(t3 - t2))
+        results.append(str(t3 - t1))
+
+        with open('res.txt', 'a') as f:
+            f.write(time.asctime(time.localtime(time.time())) + '\n')
+            f.write(str(self.n) + '\n')
+            for re in results:
+                f.write(re + '\n')
+            f.write('\n')
 
 
 def main(argv):
 
-    address_file = 'address.txt'
+    # address_file = 'address.txt'
+    #
+    # with open(address_file) as f:
+    #     lines = f.readlines()
+    #     addrs = [line.strip() for line in lines]
 
-    with open(address_file) as f:
-        lines = f.readlines()
-        addrs = [line.strip() for line in lines]
     # server data_file program_file node_amount
-    # server test_data.txt programtest.py 2
+    # 'server test_data.txt programtest.py n address_file'
     if argv[0] == 'server':
 
         data_file = argv[1]
         program_file = argv[2]
         ns = int(argv[3])
+
+        address_file = argv[4]
+
+        with open(address_file) as f:
+            lines = f.readlines()
+            addrs = [line.strip() for line in lines]
+
         server_addr = addrs[0]
         s = server(server_addr, addrs[1:1 + ns])
         s.workstart(data_file, program_file)
     # node node_id
+    # 'node 1 addr saddr'
     elif argv[0] == 'node':
         n_id = argv[1]
-        n = node(addrs[int(n_id)], addrs[0], n_id)
+        addr = argv[2]
+        saddr = argv[3]
+        n = node(addr, saddr, n_id)
         n.workstart()
 
 
