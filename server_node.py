@@ -5,6 +5,7 @@ import time
 import sys
 import os
 
+
 # 客户端
 class node:
     def __init__(self, addr, server_addr, f_path):
@@ -12,7 +13,6 @@ class node:
         self.s_addr = server_addr
         self.buffsize = 2048
         self.path = f_path
-        self.res = []
 
     def _recvfile(self, sock, path):
         msg = sock.recv(self.buffsize)
@@ -141,10 +141,9 @@ class server:
 
         nsock.close()
 
-
     def _taskcontrol(self, server_sock, task_id):
         tsock, _ = server_sock.accept()
-        print('task ' + str(task_id) + 'connected')
+        print('task ' + str(task_id) + ' connected')
 
         msg = tsock.recv(self.buffsize)
         if msg.decode() == 'get_task_id':
@@ -163,7 +162,6 @@ class server:
 
         tsock.close()
 
-
     def workstart(self, datapath, programpath):
         ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         saddr = self.addr.split(',')
@@ -171,13 +169,16 @@ class server:
 
         ssock.listen(10)
 
+        t1 = time.time()
         for nodeid in range(self.n):
             t = threading.Thread(target=self._nodecontrol, args=(nodeid, datapath, programpath))
             t.start()
 
+        t2 = time.time()
         for taskid in range(self.n):
             t = threading.Thread(target=self._taskcontrol, args=(ssock, taskid))
             t.start()
+
 
         while True:
             if len(self.res) == self.n:
@@ -193,27 +194,31 @@ class server:
                 maxp = max(self.res[1:])
                 print('global max prime: ' + str(maxp))
                 break
+        t3 = time.time()
+        print(t2 - t1)
+        print(t3 - t2)
 
 
 def main(argv):
 
-    address_file = argv[0]
+    address_file = 'address.txt'
 
     with open(address_file) as f:
         lines = f.readlines()
         addrs = [line.strip() for line in lines]
-    # address_file server data_file program_file
-    if argv[1] == 'server':
+    # server data_file program_file node_amount
+    # server test_data.txt programtest.py 2
+    if argv[0] == 'server':
 
-        data_file = argv[2]
-        program_file = argv[3]
-        ns = 2
+        data_file = argv[1]
+        program_file = argv[2]
+        ns = int(argv[3])
         server_addr = addrs[0]
         s = server(server_addr, addrs[1:1 + ns])
         s.workstart(data_file, program_file)
-    # address_file node node_id
-    elif argv[1] == 'node':
-        n_id = argv[2]
+    # node node_id
+    elif argv[0] == 'node':
+        n_id = argv[1]
         n = node(addrs[int(n_id)], addrs[0], n_id)
         n.workstart()
 
