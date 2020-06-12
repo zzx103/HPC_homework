@@ -61,7 +61,7 @@ nsock.connect((naddress[0], int(naddress[1])))
 # 向节点发送局部最大值
 msg = nsock.recv(buffsize)
 nsock.send(str(tmaxnum).encode())
-# ffff
+
 # 请求服务器获取全局最大值
 ssock.send('get_global_max_number'.encode())
 msg = ssock.recv(buffsize)
