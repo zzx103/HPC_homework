@@ -1,7 +1,7 @@
 import os
 import sys
-import threading
 
+# 测试脚本
 # 'address.txt server_node.py test_data.txt programtest.py n'
 if __name__ == '__main__':
     address_file = sys.argv[1]
@@ -14,13 +14,16 @@ if __name__ == '__main__':
         lines = f.readlines()
         addrs = [line.strip() for line in lines]
 
+    # 启动节点
     for i in range(n):
         arg = 'python ' + main_program_path + ' node ' + str(i + 1) + ' ' + addrs[i + 1] + ' ' + addrs[0]
-        t = threading.Thread(target=os.popen, args=(arg,))
-        t.start()
-        t.join()
+        os.popen(arg)
 
+    # 启动服务器
     sarg = 'python ' + main_program_path + ' server ' + data_path + ' ' + program_path + ' ' + str(n) + ' ' + address_file
-    st = threading.Thread(target=os.popen, args=(sarg,))
-    st.start()
-    st.join()
+    f = os.popen(sarg)
+
+    t = f.read()
+    print(t)
+    f.close()
+
