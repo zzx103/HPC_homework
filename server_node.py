@@ -195,6 +195,9 @@ class server:
 
             elif msg.decode() == 'get_special_ip':
                 #
+                print('addrt ', self.address_table)
+                print('sid ', self.sp_id)
+
                 s_ip = self.address_table[self.sp_id]
                 tsock.send(s_ip.encode())
 

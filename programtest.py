@@ -19,6 +19,14 @@ def is_p(m, n):
     else:
         return False
 
+
+def max_p(dlist, g_max):
+    res = 1
+    for num in dlist[m // n * k: m // n * (k + 1)]:
+        if is_p(g_max, num) and num > res:
+            res = num
+    return res
+
 # 数据路径
 dpath = sys.argv[1]
 # 服务器地址
@@ -32,6 +40,8 @@ ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 saddress = saddr.split(',')
 ssock.connect((saddress[0], int(saddress[1])))
 
+t_addr = ssock.getsockname()
+
 # 请求服务器获取任务编号
 ssock.send('get_task_id'.encode())
 msg = ssock.recv(buffsize)
@@ -39,6 +49,11 @@ k = int(msg.decode())
 
 # 请求服务器获取节点总数
 ssock.send('get_task_num'.encode())
+msg = ssock.recv(buffsize)
+n = int(msg.decode())
+
+# 请求服务器获取节点总数
+ssock.send('get_address'.encode())
 msg = ssock.recv(buffsize)
 n = int(msg.decode())
 
@@ -50,20 +65,25 @@ fp.close()
 
 # 计算对应局部最大值
 m = len(data)
-tmaxnum = max(data[m // n * k: m // n * (k + 1)])
+local_data = data[m // n * k: m // n * (k + 1)]
+tmaxnum = max(local_data)
 
 # 请求服务器获取
-ssock.send('get_special_id'.encode())
+ssock.send('get_special_ip'.encode())
 msg = ssock.recv(buffsize)
-sp_id = int(msg.decode())
+sp_ip = msg.decode()
 
+with open(str(k) + 'debug.txt', 'w') as f:
+    f.write(sp_ip)
+    f.write('\n')
+    f.write(t_addr[0])
 
-if sp_id == k:
+if sp_ip == t_addr[0]:
     temp_res = [tmaxnum]
     task_sockets = []
-    t_ip, _ = ssock.getsockname()
+
     temp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    temp_sock.bind((t_ip, port))
+    temp_sock.bind((t_addr[0], port))
     temp_sock.listen(n - 1)
 
     for i in range(n - 1):
@@ -77,18 +97,38 @@ if sp_id == k:
     for i in range(n - 1):
         task_sockets[i].send(str(global_max_number).encode())
 
+    m_p = max_p(local_data, global_max_number)
+
+    temp_res.clear()
+    temp_res.append(m_p)
+    for i in range(n - 1):
+        msg = task_sockets[i].recv(buffsize)
+        temp_res.append(int(msg.decode()))
+        task_sockets[i].close()
+
+    global_max_prime = max(temp_res)
+    ssock.send('send_global_max_number'.encode())
+    msg = ssock.recv(buffsize)
+    ssock.send(str(global_max_number).encode())
+    msg = ssock.recv(buffsize)
+
+    ssock.send('send_global_max_prime'.encode())
+    msg = ssock.recv(buffsize)
+    ssock.send(str(global_max_prime).encode())
+    msg = ssock.recv(buffsize)
 
 else:
-    ssock.send('get_special_ip'.encode())
-    msg = ssock.recv(buffsize)
-    s_ip = msg.decode()
-    ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    ksock.connect((s_ip, port))
+    ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ksock.connect((sp_ip, port))
     ksock.send(str(tmaxnum).encode())
     msg = ksock.recv(buffsize)
     global_max_number = int(msg.decode())
 
+    m_p = max_p(local_data, global_max_number)
+
+    ksock.send(str(m_p).encode())
+    ksock.close()
 
 
 # # 与指定任务进程建立连接
@@ -107,32 +147,6 @@ else:
 # ssock.close()
 
 # 计算局部最大互质数
-res = 1
-for num in data[m // n * k: m // n * (k + 1)]:
-    if is_p(global_max_number, num) and num > res:
-        res = num
-
-if sp_id == k:
-    temp_res.clear()
-    for i in range(n - 1):
-        msg = task_sockets[i].recv(buffsize)
-        temp_res.append(int(msg.decode()))
-        task_sockets[i].close()
-
-    global_max_prime = max(temp_res)
-    ssock.send('send_global_max_number'.encode())
-    msg = ssock.recv(buffsize)
-    ssock.send(str(global_max_number).encode())
-    msg = ssock.recv(buffsize)
-
-    ssock.send('send_global_max_prime'.encode())
-    msg = ssock.recv(buffsize)
-    ssock.send(str(global_max_prime).encode())
-    msg = ssock.recv(buffsize)
-
-else:
-    ksock.send(str(res).encode())
-    ksock.close()
 
 ssock.send('quit'.encode())
 ssock.close()
