@@ -2,13 +2,14 @@ import os
 import sys
 
 # 测试脚本
-# 'address.txt server_node.py test_data.txt programtest.py n'
+# 'python test.py n'
 if __name__ == '__main__':
-    address_file = sys.argv[1]
-    main_program_path = sys.argv[2]
-    data_path = sys.argv[3]
-    program_path = sys.argv[4]
-    n = int(sys.argv[5])
+
+    address_file = 'address.txt'
+    main_program_path = 'server_node.py'
+    data_path = 'test_data.txt'
+    program_path = 'programtest.py'
+    n = int(sys.argv[1])
 
     with open(address_file) as f:
         lines = f.readlines()

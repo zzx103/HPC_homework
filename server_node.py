@@ -204,7 +204,7 @@ class server:
         ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         saddr = self.addr.split(',')
         ssock.bind((saddr[0], int(saddr[1])))
-        ssock.listen(10)
+        ssock.listen(16)
 
         # 启动节点控制线程
         for nodeid in range(self.n):
@@ -281,6 +281,7 @@ def main(argv):
         s = server(server_addr, addrs[1:1 + ns])
         s.workstart(data_path, program_path)
 
+    # 节点模式
     # 'python server_node.py node 1 addr saddr'
     elif argv[0] == 'node':
         # 节点编号
