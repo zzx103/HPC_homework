@@ -123,16 +123,18 @@ if sp_id == k:
     ssock.send('send_global_max_number'.encode())
     msg = ssock.recv(buffsize)
     ssock.send(str(global_max_number).encode())
+    msg = ssock.recv(buffsize)
 
     ssock.send('send_global_max_prime'.encode())
     msg = ssock.recv(buffsize)
     ssock.send(str(global_max_prime).encode())
+    msg = ssock.recv(buffsize)
 
 else:
     ksock.send(str(res).encode())
     ksock.close()
 
-
+ssock.send('quit'.encode())
 ssock.close()
 # # 向节点发送局部最大互质数
 # msg = nsock.recv(buffsize)
