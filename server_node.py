@@ -30,10 +30,6 @@ class node:
         f.close()
 
     def workstart(self):
-        # nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # naddr = self.addr.split(',')
-        # nsock.bind((naddr[0], int(naddr[1])))
-        # nsock.listen(10)
 
         # 存放数据，程序的路径
         node_data_path = self.path + '_data'
@@ -59,34 +55,6 @@ class node:
         arg = 'python ' + node_program_path + ' ' + node_data_path + ' ' + self.s_addr
         os.system(arg)
 
-        # # 与任务进程建立连接
-        # tsock, taddr = nsock.accept()
-        # tsock.send('connected'.encode())
-        #
-        # # 从任务进程接收局部最大值
-        # msg = tsock.recv(self.buffsize)
-        #
-        # # 通知服务器并发送局部最大值
-        # ssock.send('send_local_max_number'.encode())
-        # tmsg = ssock.recv(self.buffsize)
-        # ssock.send(msg)
-        #
-        # # 从任务进程接收局部最大互质数
-        # tsock.send('get_prime'.encode())
-        # local_prime = tsock.recv(self.buffsize)
-        #
-        # # 结束与任务进程通信
-        # tsock.send('over'.encode())
-        # tsock.close()
-        #
-        # # 通知服务器并发送局部最大互质数
-        # msg = ssock.recv(self.buffsize)
-        # ssock.send('send_local_prime'.encode())
-        # msg = ssock.recv(self.buffsize)
-        # ssock.send(local_prime)
-
-        # 结束与服务器通信
-        # msg = ssock.recv(self.buffsize)
         ssock.send('quit'.encode())
         ssock.close()
 
@@ -96,9 +64,7 @@ class server:
     def __init__(self, addr, num):
         self.addr = addr
         self.buffsize = 2048
-        # self.nodeaddress = nodeaddress
         self.n = num
-        # self.taskstate = [0] * num
         self.address_table = {}
         self.sp_id = random.randint(0, num - 1)
         self.res = []
@@ -124,6 +90,7 @@ class server:
         while True:
             # 获取节点的请求并作出回应
             msg = nsock.recv(self.buffsize)
+
             if msg.decode() == 'connected':
                 nsock.send('connected'.encode())
 
@@ -138,32 +105,6 @@ class server:
                 nsock.close()
                 break
 
-
-        # # 节点请求发送局部最大值，准备接收
-        # msg = nsock.recv(self.buffsize)
-        # if msg.decode() == 'send_local_max_number':
-        #     nsock.send('ready_to_receive'.encode())
-        #     lmn = nsock.recv(self.buffsize)
-        #     # 保存局部最大值
-        #     self.res.append(int(lmn.decode()))
-        #     # 若所有节点均已发送局部最大值，通知主线程
-        #     if len(self.res) == self.n:
-        #         self.all_local_max_ready.set()
-        #     nsock.send('local_max_number_received'.encode())
-        #
-        # # 节点请求发送局部最大互质数，准备接收
-        # msg = nsock.recv(self.buffsize)
-        # if msg.decode() == 'send_local_prime':
-        #     nsock.send('ready_to_receive'.encode())
-        #     lmp = nsock.recv(self.buffsize)
-        #     # 若所有节点均已发送局部最大互质数，通知主线程
-        #     nsock.send('local_prime_received'.encode())
-        #     self.res.append(int(lmp.decode()))
-        #     if len(self.res) == self.n + 1:
-        #         self.all_local_prime_ready.set()
-
-
-
     # 任务控制线程
     def _taskcontrol(self, server_sock, task_id):
         # 与任务进程建立连接
@@ -171,38 +112,32 @@ class server:
 
         self.address_table[task_id] = taddr[0]
 
-        #
+        # 所有任务进程已连接，通知主线程
         if len(self.address_table) == self.n:
             self.all_nodes_ready.set()
 
-        # 等待主线程通知各任务进程开始计算任务
+        # 等待主线程开始计算任务
         self.begin_to_work.wait()
 
         while True:
             # 获取任务进程的请求并作出回应
             msg = tsock.recv(self.buffsize)
 
-            # 任务进程请求获取任务角色（编号），发送任务编号
+            # 任务进程请求获取编号
             if msg.decode() == 'get_task_id':
-                # self.taskstate[task_id] = 1
                 tsock.send(str(task_id).encode())
 
             # 任务进程请求获取数据总数
             elif msg.decode() == 'get_task_num':
-
-                # 发送节点总数量
                 tsock.send(str(self.n).encode())
 
+            # 任务进程请求获取特殊节点编号
             elif msg.decode() == 'get_special_id':
-                #
                 s_id = str(self.sp_id)
                 tsock.send(s_id.encode())
 
+            # 任务进程请求获取特殊节点ip
             elif msg.decode() == 'get_special_ip':
-                #
-                # print('addrt ', self.address_table)
-                # print('sid ', self.sp_id)
-                # print(self.address_table[self.sp_id])
                 s_ip = self.address_table[self.sp_id]
                 tsock.send(s_ip.encode())
 
@@ -214,6 +149,7 @@ class server:
                 self.res.append(g_max)
                 tsock.send('received'.encode())
 
+            # 任务进程请求发送全局最大互质数
             elif msg.decode() == 'send_global_max_prime':
                 tsock.send('ready'.encode())
                 msg = tsock.recv(self.buffsize)
