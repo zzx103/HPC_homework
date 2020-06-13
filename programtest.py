@@ -52,10 +52,10 @@ ssock.send('get_task_num'.encode())
 msg = ssock.recv(buffsize)
 n = int(msg.decode())
 
-# 请求服务器获取节点总数
-ssock.send('get_address'.encode())
+# 请求服务器获取
+ssock.send('get_special_id'.encode())
 msg = ssock.recv(buffsize)
-n = int(msg.decode())
+sid = int(msg.decode())
 
 # 读取数据
 fp = open(dpath, 'r')
@@ -68,17 +68,13 @@ m = len(data)
 local_data = data[m // n * k: m // n * (k + 1)]
 tmaxnum = max(local_data)
 
-# 请求服务器获取
-ssock.send('get_special_ip'.encode())
-msg = ssock.recv(buffsize)
-sp_ip = msg.decode()
 
-with open(str(k) + 'debug.txt', 'w') as f:
-    f.write(sp_ip)
-    f.write('\n')
-    f.write(t_addr[0])
+# with open(str(k) + 'debug.txt', 'w') as f:
+#     f.write(sp_ip)
+#     f.write('\n')
+#     f.write(t_addr[0])
 
-if sp_ip == t_addr[0]:
+if sid == k:
     temp_res = [tmaxnum]
     task_sockets = []
 
@@ -118,6 +114,10 @@ if sp_ip == t_addr[0]:
     msg = ssock.recv(buffsize)
 
 else:
+    # 请求服务器获取
+    ssock.send('get_special_ip'.encode())
+    msg = ssock.recv(buffsize)
+    sp_ip = msg.decode()
 
     ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ksock.connect((sp_ip, port))

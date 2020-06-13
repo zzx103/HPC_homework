@@ -98,9 +98,9 @@ class server:
         self.buffsize = 2048
         # self.nodeaddress = nodeaddress
         self.n = num
-        self.taskstate = [0] * num
+        # self.taskstate = [0] * num
         self.address_table = {}
-        self.sp_id = random.randint(1, num)
+        self.sp_id = random.randint(0, num - 1)
         self.res = []
         self.all_nodes_ready = threading.Event()
         self.begin_to_work = threading.Event()
@@ -168,7 +168,15 @@ class server:
     def _taskcontrol(self, server_sock, task_id):
         # 与任务进程建立连接
         tsock, taddr = server_sock.accept()
+
         self.address_table[task_id] = taddr[0]
+
+        #
+        if len(self.address_table) == self.n:
+            self.all_nodes_ready.set()
+
+        # 等待主线程通知各任务进程开始计算任务
+        self.begin_to_work.wait()
 
         while True:
             # 获取任务进程的请求并作出回应
@@ -176,15 +184,12 @@ class server:
 
             # 任务进程请求获取任务角色（编号），发送任务编号
             if msg.decode() == 'get_task_id':
-                self.taskstate[task_id] = 1
-                if len(self.taskstate) == self.n:
-                    self.all_nodes_ready.set()
+                # self.taskstate[task_id] = 1
                 tsock.send(str(task_id).encode())
 
             # 任务进程请求获取数据总数
             elif msg.decode() == 'get_task_num':
-                # 等待主线程通知各任务进程开始计算任务
-                self.begin_to_work.wait()
+
                 # 发送节点总数量
                 tsock.send(str(self.n).encode())
 
@@ -195,9 +200,9 @@ class server:
 
             elif msg.decode() == 'get_special_ip':
                 #
-                print('addrt ', self.address_table)
-                print('sid ', self.sp_id)
-
+                # print('addrt ', self.address_table)
+                # print('sid ', self.sp_id)
+                # print(self.address_table[self.sp_id])
                 s_ip = self.address_table[self.sp_id]
                 tsock.send(s_ip.encode())
 
@@ -207,14 +212,14 @@ class server:
                 msg = tsock.recv(self.buffsize)
                 g_max = int(msg.decode())
                 self.res.append(g_max)
-                tsock.send('received')
+                tsock.send('received'.encode())
 
             elif msg.decode() == 'send_global_max_prime':
                 tsock.send('ready'.encode())
                 msg = tsock.recv(self.buffsize)
                 g_max_p = int(msg.decode())
                 self.res.append(g_max_p)
-                tsock.send('received')
+                tsock.send('received'.encode())
                 self.work_done.set()
 
             elif msg.decode() == 'quit':
@@ -262,7 +267,7 @@ class server:
             f.write(str(t3 - t2) + '\n')
             f.write(str(t3 - t1) + '\n')
             for re in self.res:
-                f.write(re + '\n')
+                f.write(str(re) + '\n')
             f.write('\n')
 
         print('fin')
