@@ -28,6 +28,13 @@ def max_p(dlist, g_max):
     return res
 
 
+def read_data(datapath):
+    with open(datapath, 'r') as fp:
+        lines = fp.readlines()
+        d = [int(line.strip()) for line in lines]
+        return d
+
+
 if __name__ == '__main__':
     # 数据路径
     dpath = sys.argv[1]
@@ -59,10 +66,7 @@ if __name__ == '__main__':
     sid = int(msg.decode())
 
     # 读取数据
-    fp = open(dpath, 'r')
-    lines = fp.readlines()
-    data = [int(line.strip()) for line in lines]
-    fp.close()
+    data = read_data(dpath)
 
     # 计算对应局部最大值
     m = len(data)
