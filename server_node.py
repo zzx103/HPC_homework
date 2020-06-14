@@ -1,6 +1,7 @@
 # python3.7
 import socket
 import threading
+import multiprocessing
 import time
 import sys
 import os
@@ -83,34 +84,29 @@ class server:
         f.close()
 
     # 节点控制线程
-    def _nodecontrol(self, server_sock, datapath, programpath):
+    def _nodecontrol(self, node_sock, datapath, programpath):
         # 与节点建立连接
-        nsock, _ = server_sock.accept()
 
         while True:
             # 获取节点的请求并作出回应
-            msg = nsock.recv(self.buffsize)
+            msg = node_sock.recv(self.buffsize)
 
             if msg.decode() == 'connected':
-                nsock.send('connected'.encode())
+                node_sock.send('connected'.encode())
 
             # 节点请求发送数据，发送数据文件
             elif msg.decode() == 'get_data':
-                self._sendfile(nsock, datapath)
+                self._sendfile(node_sock, datapath)
             # 节点请求发送程序，发送程序文件
             elif msg.decode() == 'get_program':
-                self._sendfile(nsock, programpath)
+                self._sendfile(node_sock, programpath)
 
             elif msg.decode() == 'quit':
-                nsock.close()
+                node_sock.close()
                 break
 
     # 任务控制线程
-    def _taskcontrol(self, server_sock, task_id):
-        # 与任务进程建立连接
-        tsock, taddr = server_sock.accept()
-
-        self.address_table[task_id] = taddr[0]
+    def _taskcontrol(self, task_sock, task_id):
 
         # 所有任务进程已连接，通知主线程
         if len(self.address_table) == self.n:
@@ -121,45 +117,45 @@ class server:
 
         while True:
             # 获取任务进程的请求并作出回应
-            msg = tsock.recv(self.buffsize)
+            msg = task_sock.recv(self.buffsize)
 
             # 任务进程请求获取编号
             if msg.decode() == 'get_task_id':
-                tsock.send(str(task_id).encode())
+                task_sock.send(str(task_id).encode())
 
             # 任务进程请求获取数据总数
             elif msg.decode() == 'get_task_num':
-                tsock.send(str(self.n).encode())
+                task_sock.send(str(self.n).encode())
 
             # 任务进程请求获取特殊节点编号
             elif msg.decode() == 'get_special_id':
                 s_id = str(self.sp_id)
-                tsock.send(s_id.encode())
+                task_sock.send(s_id.encode())
 
             # 任务进程请求获取特殊节点ip
             elif msg.decode() == 'get_special_ip':
                 s_ip = self.address_table[self.sp_id]
-                tsock.send(s_ip.encode())
+                task_sock.send(s_ip.encode())
 
             # 任务进程请求发送全局最大值
             elif msg.decode() == 'send_global_max_number':
-                tsock.send('ready'.encode())
-                msg = tsock.recv(self.buffsize)
+                task_sock.send('ready'.encode())
+                msg = task_sock.recv(self.buffsize)
                 g_max = int(msg.decode())
                 self.res.append(g_max)
-                tsock.send('received'.encode())
+                task_sock.send('received'.encode())
 
             # 任务进程请求发送全局最大互质数
             elif msg.decode() == 'send_global_max_prime':
-                tsock.send('ready'.encode())
-                msg = tsock.recv(self.buffsize)
+                task_sock.send('ready'.encode())
+                msg = task_sock.recv(self.buffsize)
                 g_max_p = int(msg.decode())
                 self.res.append(g_max_p)
-                tsock.send('received'.encode())
+                task_sock.send('received'.encode())
                 self.work_done.set()
 
             elif msg.decode() == 'quit':
-                tsock.close()
+                task_sock.close()
                 break
 
     # 服务器工作主线程
@@ -173,12 +169,16 @@ class server:
 
         # 启动节点控制线程
         for nodeid in range(self.n):
-            t = threading.Thread(target=self._nodecontrol, args=(ssock, datapath, programpath))
+            nsock, _ = ssock.accept()
+            t = threading.Thread(target=self._nodecontrol, args=(nsock, datapath, programpath))
             t.start()
 
         # 启动任务控制线程
         for taskid in range(self.n):
-            t = threading.Thread(target=self._taskcontrol, args=(ssock, taskid))
+            tsock, taddr = ssock.accept()
+            self.address_table[taskid] = taddr[0]
+
+            t = threading.Thread(target=self._taskcontrol, args=(tsock, taskid))
             t.start()
 
         # 等待所有节点就绪
