@@ -2,6 +2,7 @@
 import socket
 import sys
 
+
 # 判断是否互质
 def is_p(m, n):
     q = 0
@@ -20,14 +21,7 @@ def is_p(m, n):
         return False
 
 
-def max_p(dlist, g_max):
-    res = 1
-    for num in dlist:
-        if is_p(g_max, num) and num > res:
-            res = num
-    return res
-
-
+# 计算矩阵最大元素
 def max_m_p(dmtx, g_max):
     res = 1
     for tl in dmtx:
@@ -37,13 +31,7 @@ def max_m_p(dmtx, g_max):
     return res
 
 
-def read_data(datapath):
-    with open(datapath, 'r') as fp:
-        lines = fp.readlines()
-        d = [int(line.strip()) for line in lines]
-        return d
-
-
+# 读取矩阵
 def read_data_m(datapath):
     D = []
     with open(datapath, 'r') as fp:
@@ -54,10 +42,7 @@ def read_data_m(datapath):
     return D[:len(D)//2], D[len(D)//2:]
 
 
-def cal_task(L):
-    return max(L)
-
-
+# 计算局部矩阵
 def cal_m_m(a, B):
     res = []
     tn = len(a[0])
@@ -68,7 +53,6 @@ def cal_m_m(a, B):
             for k in range(tn):
                 t += a[i][k] * B[k][j]
             res[i].append(t)
-    # return max([max(h) for h in res])
     return res
 
 
@@ -103,13 +87,9 @@ if __name__ == '__main__':
     sid = int(msg.decode())
 
     # 读取数据
-    # data = read_data(dpath)
     dA, dB = read_data_m(dpath)
 
-    # 计算对应局部最大值
-    # m = len(data)
-    # local_data = data[m // n * k: m // n * (k + 1)]
-    # tmaxnum = cal_task(local_data)
+    # 计算对应局部矩阵最大元素
     m = len(dA)
     local_data = dA[m // n * k: m // n * (k + 1)]
     l_matrix = cal_m_m(local_data, dB)
@@ -128,41 +108,40 @@ if __name__ == '__main__':
         for i in range(n - 1):
             # 等待一般节点连接
             s, _ = temp_sock.accept()
-            # 接收局部最大值
+            # 接收局部矩阵最大元素
             msg = s.recv(buffsize)
             temp_res.append(int(msg.decode()))
             task_sockets.append(s)
 
-        # 计算全局最大值
+        # 计算全局矩阵最大元素
         global_max_number = max(temp_res)
 
-        # 向一般节点发送全局最大值
+        # 向一般节点发送全局矩阵最大元素
         for i in range(n - 1):
             task_sockets[i].send(str(global_max_number).encode())
 
-        # 计算局部最大互质数
-        # lmp = max_p(local_data, global_max_number)
+        # 计算局部矩阵最大互质元素
         lmp = max_m_p(l_matrix, global_max_number)
 
         temp_res.clear()
         temp_res.append(lmp)
 
         for i in range(n - 1):
-            # 接收一般节点局部最大互质数
+            # 接收一般节点局部矩阵最大互质元素
             msg = task_sockets[i].recv(buffsize)
             temp_res.append(int(msg.decode()))
             task_sockets[i].close()
 
-        # 计算全局最大互质数
+        # 计算全局矩阵最大互质元素
         global_max_prime = max(temp_res)
 
-        # 向服务器发送全局最大值
+        # 向服务器发送全局矩阵最大元素
         ssock.send('send_result'.encode())
         msg = ssock.recv(buffsize)
         ssock.send(str(global_max_number).encode())
         msg = ssock.recv(buffsize)
 
-        # 向服务器发送全局最大互质数
+        # 向服务器发送全局矩阵最大互质元素
         ssock.send('send_result'.encode())
         msg = ssock.recv(buffsize)
         ssock.send(str(global_max_prime).encode())
@@ -183,18 +162,17 @@ if __name__ == '__main__':
         ksock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ksock.connect((sp_ip, port))
 
-        # 向特殊节点发送局部最大值
+        # 向特殊节点发送局部矩阵最大元素
         ksock.send(str(tmaxnum).encode())
 
-        # 获取全局最大值
+        # 获取全局矩阵最大元素
         msg = ksock.recv(buffsize)
         global_max_number = int(msg.decode())
 
-        # 计算局部最大互质数
-        # m_p = max_p(local_data, global_max_number)
+        # 计算局部矩阵最大互质元素
         m_p = max_m_p(l_matrix, global_max_number)
 
-        # 发送局部最大互质数
+        # 发送局部矩阵最大互质元素
         ksock.send(str(m_p).encode())
         ksock.close()
 
