@@ -22,9 +22,18 @@ def is_p(m, n):
 
 def max_p(dlist, g_max):
     res = 1
-    for num in dlist[m // n * k: m // n * (k + 1)]:
+    for num in dlist:
         if is_p(g_max, num) and num > res:
             res = num
+    return res
+
+
+def max_m_p(dmtx, g_max):
+    res = 1
+    for tl in dmtx:
+        for num in tl:
+            if is_p(g_max, num) and num > res:
+                res = num
     return res
 
 
@@ -33,6 +42,34 @@ def read_data(datapath):
         lines = fp.readlines()
         d = [int(line.strip()) for line in lines]
         return d
+
+
+def read_data_m(datapath):
+    D = []
+    with open(datapath, 'r') as fp:
+        lines = fp.readlines()
+        for line in lines:
+            td = line.strip().split()
+            D.append([int(i) for i in td])
+    return D[:len(D)//2], D[len(D)//2:]
+
+
+def cal_task(L):
+    return max(L)
+
+
+def cal_m_m(a, B):
+    res = []
+    tn = len(a[0])
+    for i in range(len(a)):
+        res.append([])
+        for j in range(tn):
+            t = 0
+            for k in range(tn):
+                t += a[i][k] * B[k][j]
+            res[i].append(t)
+    # return max([max(h) for h in res])
+    return res
 
 
 if __name__ == '__main__':
@@ -66,12 +103,17 @@ if __name__ == '__main__':
     sid = int(msg.decode())
 
     # 读取数据
-    data = read_data(dpath)
+    # data = read_data(dpath)
+    dA, dB = read_data_m(dpath)
 
     # 计算对应局部最大值
-    m = len(data)
-    local_data = data[m // n * k: m // n * (k + 1)]
-    tmaxnum = max(local_data)
+    # m = len(data)
+    # local_data = data[m // n * k: m // n * (k + 1)]
+    # tmaxnum = cal_task(local_data)
+    m = len(dA)
+    local_data = dA[m // n * k: m // n * (k + 1)]
+    l_matrix = cal_m_m(local_data, dB)
+    tmaxnum = max([max(row) for row in l_matrix])
 
     # 特殊节点
     if sid == k:
@@ -99,7 +141,8 @@ if __name__ == '__main__':
             task_sockets[i].send(str(global_max_number).encode())
 
         # 计算局部最大互质数
-        lmp = max_p(local_data, global_max_number)
+        # lmp = max_p(local_data, global_max_number)
+        lmp = max_m_p(l_matrix, global_max_number)
 
         temp_res.clear()
         temp_res.append(lmp)
@@ -125,6 +168,10 @@ if __name__ == '__main__':
         ssock.send(str(global_max_prime).encode())
         msg = ssock.recv(buffsize)
 
+        # 计算任务结束
+        ssock.send('done'.encode())
+        msg = ssock.recv(buffsize)
+
     # 一般节点
     else:
         # 请求服务器获取特殊节点ip
@@ -144,7 +191,8 @@ if __name__ == '__main__':
         global_max_number = int(msg.decode())
 
         # 计算局部最大互质数
-        m_p = max_p(local_data, global_max_number)
+        # m_p = max_p(local_data, global_max_number)
+        m_p = max_m_p(l_matrix, global_max_number)
 
         # 发送局部最大互质数
         ksock.send(str(m_p).encode())

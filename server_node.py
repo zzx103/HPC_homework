@@ -153,18 +153,10 @@ class server:
 
                 task_sock.send('received'.encode())
 
-            # # 任务进程请求发送全局最大互质数
-            # elif msg.decode() == 'send_global_max_prime':
-            #     task_sock.send('ready'.encode())
-            #     msg = task_sock.recv(self.buffsize)
-            #     g_max_p = int(msg.decode())
-            #
-            #     self.lock.acquire()
-            #     self.res.append(g_max_p)
-            #     self.lock.release()
-            #
-            #     task_sock.send('received'.encode())
-            #     self.work_done.set()
+            # 任务进程请求发送全局最大互质数
+            elif msg.decode() == 'done':
+                task_sock.send('done'.encode())
+                self.work_done.set()
 
             elif msg.decode() == 'quit':
                 task_sock.close()
@@ -185,17 +177,18 @@ class server:
             nsock, _ = ssock.accept()
             t = multiprocessing.Process(target=self._nodecontrol, args=(nsock, datapath, programpath))
             t.start()
-        print(1)
+
         # 启动任务控制线程
         for taskid in range(self.n):
+
             tsock, taddr = ssock.accept()
-            print('cnt')
+
             t = multiprocessing.Process(target=self._taskcontrol, args=(tsock, taskid))
             t.start()
-        print(2)
+
         # 等待所有节点就绪
         self.all_nodes_ready.wait()
-        print(3)
+
         t2 = time.time()
 
         # 通知节点控制线程开始计算工作
@@ -203,7 +196,7 @@ class server:
 
         # 等待结果
         self.work_done.wait()
-        print(4)
+
         t3 = time.time()
 
         # 保存结果
