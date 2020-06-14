@@ -83,7 +83,7 @@ class server:
             sock.send(line)
         f.close()
 
-    # 节点控制线程
+    # 节点控制进程
     def _nodecontrol(self, node_sock, datapath, programpath):
         # 与节点建立连接
 
@@ -105,10 +105,10 @@ class server:
                 node_sock.close()
                 break
 
-    # 任务控制线程
+    # 任务控制进程
     def _taskcontrol(self, task_sock, task_id):
 
-        # 所有任务进程已连接，通知主线程
+        # 所有任务进程已连接，通知主进程
         self.lock.acquire()
         taddr = task_sock.getpeername()
         self.address_table[task_id] = taddr[0]
@@ -127,7 +127,7 @@ class server:
             if msg.decode() == 'get_task_id':
                 task_sock.send(str(task_id).encode())
 
-            # 任务进程请求获取数据总数
+            # 任务进程请求获取节点总数
             elif msg.decode() == 'get_task_num':
                 task_sock.send(str(self.n).encode())
 
@@ -153,7 +153,7 @@ class server:
 
                 task_sock.send('received'.encode())
 
-            # 任务进程请求发送全局最大互质数
+            # 任务进程计算工作结束
             elif msg.decode() == 'done':
                 task_sock.send('done'.encode())
                 self.work_done.set()
@@ -162,7 +162,7 @@ class server:
                 task_sock.close()
                 break
 
-    # 服务器工作主线程
+    # 服务器工作主进程
     def workstart(self, datapath, programpath):
         t1 = time.time()
 
@@ -171,14 +171,13 @@ class server:
         ssock.bind((saddr[0], int(saddr[1])))
         ssock.listen(50)
 
-
-        # 启动节点控制线程
+        # 启动节点控制进程
         for nodeid in range(self.n):
             nsock, _ = ssock.accept()
             t = multiprocessing.Process(target=self._nodecontrol, args=(nsock, datapath, programpath))
             t.start()
 
-        # 启动任务控制线程
+        # 启动任务控制进程
         for taskid in range(self.n):
 
             tsock, taddr = ssock.accept()
@@ -191,7 +190,7 @@ class server:
 
         t2 = time.time()
 
-        # 通知节点控制线程开始计算工作
+        # 通知节点控制进程开始计算工作
         self.begin_to_work.set()
 
         # 等待结果
@@ -202,13 +201,13 @@ class server:
         # 保存结果
         with open('res.txt', 'a') as f:
             f.write(time.asctime(time.localtime(time.time())) + '\n')
-            f.write(str(self.n) + '\n')
-
-            f.write(str(t2 - t1) + '\n')
-            f.write(str(t3 - t2) + '\n')
-            f.write(str(t3 - t1) + '\n')
+            f.write('节点数：' + str(self.n) + '\n')
+            f.write('传送文件时间：' + str(t2 - t1) + '\n')
+            f.write('计算时间：' + str(t3 - t2) + '\n')
+            f.write('总时间：' + str(t3 - t1) + '\n')
+            f.write('最大元素与最大互质元素：\n')
             for re in self.res:
-                f.write(str(re) + '\n')
+                f.write(str(re) + ' ')
             f.write('\n')
 
         print('fin')
