@@ -1,6 +1,5 @@
 # python3.7
 import socket
-import threading
 import multiprocessing
 import time
 import sys
@@ -66,12 +65,13 @@ class server:
         self.addr = addr
         self.buffsize = 2048
         self.n = num
-        self.address_table = {}
+        self.address_table = multiprocessing.Manager().dict()
         self.sp_id = random.randint(0, num - 1)
-        self.res = []
-        self.all_nodes_ready = threading.Event()
-        self.begin_to_work = threading.Event()
-        self.work_done = threading.Event()
+        self.res = multiprocessing.Manager().list()
+        self.all_nodes_ready = multiprocessing.Event()
+        self.begin_to_work = multiprocessing.Event()
+        self.work_done = multiprocessing.Event()
+        self.lock = multiprocessing.Lock()
 
     # 发送文件
     def _sendfile(self, sock, path):
@@ -109,8 +109,12 @@ class server:
     def _taskcontrol(self, task_sock, task_id):
 
         # 所有任务进程已连接，通知主线程
+        self.lock.acquire()
+        taddr = task_sock.getpeername()
+        self.address_table[task_id] = taddr[0]
         if len(self.address_table) == self.n:
             self.all_nodes_ready.set()
+        self.lock.release()
 
         # 等待主线程开始计算任务
         self.begin_to_work.wait()
@@ -137,22 +141,30 @@ class server:
                 s_ip = self.address_table[self.sp_id]
                 task_sock.send(s_ip.encode())
 
-            # 任务进程请求发送全局最大值
-            elif msg.decode() == 'send_global_max_number':
+            # 任务进程请求发送结果
+            elif msg.decode() == 'send_result':
                 task_sock.send('ready'.encode())
                 msg = task_sock.recv(self.buffsize)
-                g_max = int(msg.decode())
-                self.res.append(g_max)
+                result = int(msg.decode())
+
+                self.lock.acquire()
+                self.res.append(result)
+                self.lock.release()
+
                 task_sock.send('received'.encode())
 
-            # 任务进程请求发送全局最大互质数
-            elif msg.decode() == 'send_global_max_prime':
-                task_sock.send('ready'.encode())
-                msg = task_sock.recv(self.buffsize)
-                g_max_p = int(msg.decode())
-                self.res.append(g_max_p)
-                task_sock.send('received'.encode())
-                self.work_done.set()
+            # # 任务进程请求发送全局最大互质数
+            # elif msg.decode() == 'send_global_max_prime':
+            #     task_sock.send('ready'.encode())
+            #     msg = task_sock.recv(self.buffsize)
+            #     g_max_p = int(msg.decode())
+            #
+            #     self.lock.acquire()
+            #     self.res.append(g_max_p)
+            #     self.lock.release()
+            #
+            #     task_sock.send('received'.encode())
+            #     self.work_done.set()
 
             elif msg.decode() == 'quit':
                 task_sock.close()
@@ -167,23 +179,23 @@ class server:
         ssock.bind((saddr[0], int(saddr[1])))
         ssock.listen(50)
 
+
         # 启动节点控制线程
         for nodeid in range(self.n):
             nsock, _ = ssock.accept()
-            t = threading.Thread(target=self._nodecontrol, args=(nsock, datapath, programpath))
+            t = multiprocessing.Process(target=self._nodecontrol, args=(nsock, datapath, programpath))
             t.start()
-
+        print(1)
         # 启动任务控制线程
         for taskid in range(self.n):
             tsock, taddr = ssock.accept()
-            self.address_table[taskid] = taddr[0]
-
-            t = threading.Thread(target=self._taskcontrol, args=(tsock, taskid))
+            print('cnt')
+            t = multiprocessing.Process(target=self._taskcontrol, args=(tsock, taskid))
             t.start()
-
+        print(2)
         # 等待所有节点就绪
         self.all_nodes_ready.wait()
-
+        print(3)
         t2 = time.time()
 
         # 通知节点控制线程开始计算工作
@@ -191,7 +203,7 @@ class server:
 
         # 等待结果
         self.work_done.wait()
-
+        print(4)
         t3 = time.time()
 
         # 保存结果
@@ -212,7 +224,7 @@ class server:
 def main(argv):
 
     # 服务器模式
-    # 'python server_node.py server test_data.txt programtest.py 1 server_address'
+    # 'python server_node.py server test_data.txt programtest.py 2 127.0.0.1,12340'
     if argv[0] == 'server':
         # 数据路径
         data_path = argv[1]
@@ -227,7 +239,7 @@ def main(argv):
         s.workstart(data_path, program_path)
 
     # 节点模式
-    # 'python server_node.py node 1 saddr'
+    # 'python server_node.py node 1 127.0.0.1,12340'
     elif argv[0] == 'node':
         # 节点编号
         n_id = argv[1]

@@ -114,13 +114,13 @@ if __name__ == '__main__':
         global_max_prime = max(temp_res)
 
         # 向服务器发送全局最大值
-        ssock.send('send_global_max_number'.encode())
+        ssock.send('send_result'.encode())
         msg = ssock.recv(buffsize)
         ssock.send(str(global_max_number).encode())
         msg = ssock.recv(buffsize)
 
         # 向服务器发送全局最大互质数
-        ssock.send('send_global_max_prime'.encode())
+        ssock.send('send_result'.encode())
         msg = ssock.recv(buffsize)
         ssock.send(str(global_max_prime).encode())
         msg = ssock.recv(buffsize)
