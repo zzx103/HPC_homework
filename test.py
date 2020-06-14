@@ -1,7 +1,7 @@
 import os
 import sys
 
-# 测试脚本
+# 测试脚本 n为节点数
 # 'python test.py n'
 if __name__ == '__main__':
 
