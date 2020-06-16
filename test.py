@@ -7,7 +7,7 @@ if __name__ == '__main__':
 
     server_address = '127.0.0.1,12300'
     main_program_path = 'server_node.py'
-    data_path = 'matrix_data.txt'
+    data_path = 'matrix_data1024.txt'
     program_path = 'programtest.py'
     n = int(sys.argv[1])
 
