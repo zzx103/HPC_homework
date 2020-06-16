@@ -209,9 +209,10 @@ class server:
         # 保存结果
         with open('res.txt', 'a') as f:
             f.write(time.asctime(time.localtime(time.time())) + '\n')
+            f.write('数据文件：' + datapath + '\n')
             f.write('节点数：' + str(self.n) + '\n')
             f.write('传送文件时间：' + str(t2 - t1) + '\n')
-            f.write('计算时间：' + str(t3 - t2) + '\n')
+            f.write('任务计算时间：' + str(t3 - t2) + '\n')
             f.write('总时间：' + str(t3 - t1) + '\n')
             f.write('最大元素与最大互质元素：\n')
             for re in self.res:
