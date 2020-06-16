@@ -105,7 +105,7 @@ if __name__ == '__main__':
         t_addr = ssock.getsockname()
         temp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         temp_sock.bind((t_addr[0], port))
-        temp_sock.listen(n - 1)
+        temp_sock.listen(50)
 
         for i in range(n - 1):
             # 等待一般节点连接
