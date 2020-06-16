@@ -107,6 +107,10 @@ if __name__ == '__main__':
         temp_sock.bind((t_addr[0], port))
         temp_sock.listen(50)
 
+        # 通知服务器特殊任务进程监听就绪
+        ssock.send('sp_ready'.encode())
+        msg = ssock.recv(buffsize)
+
         for i in range(n - 1):
             # 等待一般节点连接
             s, _ = temp_sock.accept()

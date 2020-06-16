@@ -71,6 +71,7 @@ class server:
         self.all_nodes_ready = multiprocessing.Event()
         self.begin_to_work = multiprocessing.Event()
         self.work_done = multiprocessing.Event()
+        self.node_sp_ready = multiprocessing.Event()
         self.lock = multiprocessing.Lock()
 
     # 发送文件
@@ -136,10 +137,17 @@ class server:
                 s_id = str(self.sp_id)
                 task_sock.send(s_id.encode())
 
-            # 任务进程请求获取特殊节点ip
+            # 一般任务进程请求获取特殊节点ip
             elif msg.decode() == 'get_special_ip':
                 s_ip = self.address_table[self.sp_id]
+                # 等待特殊任务进程监听就绪
+                self.node_sp_ready.wait()
                 task_sock.send(s_ip.encode())
+
+            # 特殊任务进程请求同步
+            elif msg.decode() == 'sp_ready':
+                self.node_sp_ready.set()
+                task_sock.send('wait'.encode())
 
             # 任务进程请求发送结果
             elif msg.decode() == 'send_result':
