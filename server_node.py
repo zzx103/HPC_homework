@@ -83,7 +83,7 @@ class server:
             sock.send(line)
         f.close()
 
-    # 节点控制进程
+    # 节点管理进程
     def _nodecontrol(self, node_sock, datapath, programpath):
         # 与节点建立连接
 
@@ -105,7 +105,7 @@ class server:
                 node_sock.close()
                 break
 
-    # 任务控制进程
+    # 任务管理进程
     def _taskcontrol(self, task_sock, task_id):
 
         # 所有任务进程已连接，通知主进程

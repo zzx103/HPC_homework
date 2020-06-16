@@ -81,19 +81,21 @@ if __name__ == '__main__':
     msg = ssock.recv(buffsize)
     n = int(msg.decode())
 
-    # 请求服务器获取特殊节点编号
-    ssock.send('get_special_id'.encode())
-    msg = ssock.recv(buffsize)
-    sid = int(msg.decode())
-
     # 读取数据
     dA, dB = read_data_m(dpath)
 
     # 计算对应局部矩阵最大元素
     m = len(dA)
-    local_data = dA[m // n * k: m // n * (k + 1)]
+    beg = m // n * k
+    end = m // n * (k + 1) if k != n - 1 else m
+    local_data = dA[beg: end]
     l_matrix = cal_m_m(local_data, dB)
     tmaxnum = max([max(row) for row in l_matrix])
+
+    # 请求服务器获取特殊节点编号
+    ssock.send('get_special_id'.encode())
+    msg = ssock.recv(buffsize)
+    sid = int(msg.decode())
 
     # 特殊节点
     if sid == k:
